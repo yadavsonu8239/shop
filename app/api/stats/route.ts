@@ -8,12 +8,17 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const searchParams = request.nextUrl.searchParams;
-    const period = searchParams.get('period') || 'month'; // month, today, all
+    const period = searchParams.get('period') || 'month'; // month, today, all, custom
+    const customDate = searchParams.get('date'); // Custom date for specific day
 
     let startDate: Date | undefined;
     let endDate: Date | undefined;
 
-    if (period === 'month') {
+    if (period === 'custom' && customDate) {
+      // Custom date - show stats for specific day
+      startDate = startOfDay(new Date(customDate));
+      endDate = endOfDay(new Date(customDate));
+    } else if (period === 'month') {
       startDate = startOfMonth(new Date());
       endDate = endOfMonth(new Date());
     } else if (period === 'today') {

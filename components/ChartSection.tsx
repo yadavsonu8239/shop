@@ -14,21 +14,30 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { format } from 'date-fns';
 
 interface ChartSectionProps {
   period: string;
+  selectedDate?: Date | null;
 }
 
-export default function ChartSection({ period }: ChartSectionProps) {
+export default function ChartSection({ period, selectedDate }: ChartSectionProps) {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [period, selectedDate]);
 
   const fetchData = async () => {
     try {
-      const res = await fetch(`/api/stats?period=${period}`);
+      let url = `/api/stats?period=${period}`;
+
+      // If a custom date is selected, add it to the query
+      if (selectedDate && period === 'custom') {
+        url += `&date=${format(selectedDate, 'yyyy-MM-dd')}`;
+      }
+
+      const res = await fetch(url);
       const result = await res.json();
       if (result.success) {
         setData(result.data);

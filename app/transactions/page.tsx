@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Filter, ArrowUpCircle, ArrowDownCircle, Trash2 } from 'lucide-react';
+import { Filter, ArrowUpCircle, ArrowDownCircle, Trash2, Edit } from 'lucide-react';
 import Link from 'next/link';
 
 interface Transaction {
@@ -31,6 +31,8 @@ export default function Transactions() {
     startDate: '',
     endDate: '',
   });
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -86,6 +88,48 @@ export default function Transactions() {
       console.error('Error deleting transaction:', error);
       alert('Failed to delete transaction');
     }
+  };
+
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setShowEditModal(true);
+  };
+
+  const handleUpdateTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTransaction) return;
+
+    try {
+      const res = await fetch(`/api/transactions/${editingTransaction._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date: editingTransaction.date,
+          category: editingTransaction.category,
+          type: editingTransaction.type,
+          paymentType: editingTransaction.paymentType,
+          description: editingTransaction.description,
+          amount: editingTransaction.amount,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchTransactions();
+        setShowEditModal(false);
+        setEditingTransaction(null);
+        alert('Transaction updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      alert('Failed to update transaction');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditModal(false);
+    setEditingTransaction(null);
   };
 
   const formatCurrency = (amount: number) => {
@@ -277,13 +321,22 @@ export default function Transactions() {
                         {formatCurrency(transaction.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                        <button
-                          onClick={() => handleDelete(transaction._id)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete transaction"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(transaction)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit transaction"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(transaction._id)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete transaction"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -323,7 +376,14 @@ export default function Transactions() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 mb-2">{transaction.description}</p>
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => handleEdit(transaction)}
+                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleDelete(transaction._id)}
                       className="text-red-600 hover:text-red-800 text-sm flex items-center gap-1"
@@ -366,6 +426,170 @@ export default function Transactions() {
                     .reduce((sum, t) => sum + t.amount, 0)
                 )}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Transaction</h2>
+
+              <form onSubmit={handleUpdateTransaction} className="space-y-4">
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editingTransaction.date.split('T')[0]}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        date: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  />
+                </div>
+
+                {/* Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Transaction Type
+                  </label>
+                  <select
+                    value={editingTransaction.type}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        type: e.target.value as 'expense' | 'income',
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="expense">Expense</option>
+                    <option value="income">Income</option>
+                  </select>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category
+                  </label>
+                  <select
+                    value={editingTransaction.category}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        category: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {categories
+                      .filter((cat) => cat.type === editingTransaction.type)
+                      .map((category) => (
+                        <option key={category._id} value={category.name}>
+                          {category.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Payment Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Method
+                  </label>
+                  <select
+                    value={editingTransaction.paymentType}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        paymentType: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Select payment method</option>
+                    <option value="cash">Cash</option>
+                    <option value="upi">UPI</option>
+                    <option value="card">Card</option>
+                    <option value="netbanking">Net Banking</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTransaction.amount}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        amount: parseFloat(e.target.value),
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={editingTransaction.description}
+                    onChange={(e) =>
+                      setEditingTransaction({
+                        ...editingTransaction,
+                        description: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    rows={3}
+                    placeholder="Enter transaction details..."
+                    required
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 font-medium"
+                  >
+                    Update Transaction
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
